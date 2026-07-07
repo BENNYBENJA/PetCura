@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+const BACKEND_URL = 'http://localhost:3001/api'
+
 function useCountUp(target, duration = 1800, shouldStart = false) {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -24,9 +26,43 @@ const servicios = [
   { id: 4, icono: 'bi-bag-heart-fill',          titulo: 'Tienda',           desc: 'Alimentos premium, accesorios y medicamentos seleccionados por nuestros veterinarios.' },
 ]
 
+// Datos de respaldo si el backend no está disponible
+const MASCOTAS_FALLBACK = [
+  { id: 1, name: 'Labrador Retriever', temperament: 'Activo, Amigable, Leal',     breed_group: 'Sporting', image: { url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&auto=format&fit=crop&q=80' } },
+  { id: 2, name: 'Golden Retriever',   temperament: 'Confiable, Amigable, Gentil', breed_group: 'Sporting', image: { url: 'https://images.unsplash.com/photo-1583511655826-05700d52f4d9?w=600&auto=format&fit=crop&q=80' } },
+  { id: 3, name: 'Bulldog',            temperament: 'Amigable, Valiente, Leal',    breed_group: 'Non-Sporting', image: { url: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?w=600&auto=format&fit=crop&q=80' } },
+]
+
 function Inicio() {
   const statsRef = useRef(null)
   const [statsVisible, setStatsVisible] = useState(false)
+
+  // ── Consumo de la API REST ──────────────────────────
+  const [mascotas, setMascotas]       = useState([])
+  const [loadingPets, setLoadingPets] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const fetchMascotas = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/mascotas`, { signal: controller.signal })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const data = await res.json()
+        // Mostramos sólo las primeras 3 mascotas en la sección de preview
+        setMascotas(data.slice(0, 3))
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Backend inalcanzable — cargando mascotas de respaldo:', err.message)
+          setMascotas(MASCOTAS_FALLBACK)
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoadingPets(false)
+      }
+    }
+    fetchMascotas()
+    return () => controller.abort()
+  }, [])
+  // ────────────────────────────────────────────────────
 
   useEffect(() => {
     const el = statsRef.current
@@ -126,44 +162,72 @@ function Inicio() {
         </div>
       </section>
 
-      {/* ── NUESTRAS MASCOTAS ── */}
+      {/* ── MASCOTAS DESDE LA API ── */}
       <section style={{ padding: '5.5rem 0', background: 'var(--bg-secondary)' }}>
         <div className="container">
-          <div className="row align-items-center gy-5">
-            <div className="col-lg-5">
-              <div className="position-relative">
-                <img
-                  src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=700&q=80"
-                  alt="Mascotas PetCura"
-                  className="w-100 rounded-4"
-                  style={{ height: 390, objectFit: 'cover', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-color)' }}
-                />
-                <div className="position-absolute top-0 end-0 m-3 rounded-3 px-3 py-2"
-                  style={{ background: '#fff', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
-                  <span style={{ color: 'var(--primary-green)', fontWeight: 700, fontSize: '0.88rem' }}>🐾 Adopción Abierta</span>
+          <div className="text-center mb-5">
+            <span className="badge-premium mb-3 d-inline-flex">
+              <i className="bi bi-database-fill-check" /> Datos en vivo desde MongoDB
+            </span>
+            <h2 className="fw-bold" style={{ color: 'var(--text-dark)', fontSize: 'clamp(1.8rem,3vw,2.4rem)' }}>
+              Mascotas en <span className="text-gradient-premium">Adopción 🐾</span>
+            </h2>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Datos cargados dinámicamente desde nuestra API REST y base de datos MongoDB Atlas.
+            </p>
+          </div>
+
+          {loadingPets ? (
+            /* Spinner mientras carga la API */
+            <div className="text-center py-4">
+              <div className="spinner-border text-success" style={{ width: '3rem', height: '3rem' }} role="status">
+                <span className="visually-hidden">Cargando...</span>
+              </div>
+              <p className="text-muted mt-3 small">Conectando con la API REST...</p>
+            </div>
+          ) : (
+            <div className="row g-4">
+              {mascotas.map((m) => (
+                <div key={m.id} className="col-md-4">
+                  <div className="raza-card-premium h-100">
+                    <div className="raza-img-container">
+                      <img
+                        src={m.image?.url ?? 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&auto=format&fit=crop&q=80'}
+                        alt={m.name}
+                        className="card-img-top object-fit-cover"
+                        style={{ height: 220 }}
+                        loading="lazy"
+                        onError={e => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&auto=format&fit=crop&q=80' }}
+                      />
+                      <span className="position-absolute top-0 end-0 m-2 badge bg-success rounded-pill px-2 py-1">
+                        <i className="bi bi-check-circle-fill me-1" />Disponible
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      <h5 className="fw-bold mb-1" style={{ color: 'var(--text-dark)' }}>{m.name}</h5>
+                      {m.breed_group && (
+                        <span className="badge mb-2" style={{ background: 'var(--primary-light)', color: 'var(--primary-green)', fontWeight: 700 }}>
+                          {m.breed_group}
+                        </span>
+                      )}
+                      <p className="text-muted small mb-3">
+                        <i className="bi bi-heart-fill text-success me-1" />
+                        {m.temperament?.split(', ').slice(0, 3).join(' · ')}
+                      </p>
+                      <Link to="/adopcion" className="btn btn-glow-primary rounded-pill w-100 fw-semibold">
+                        <i className="bi bi-calendar-heart me-1" /> Quiero Adoptarlo
+                      </Link>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-            <div className="col-lg-7 ps-lg-5">
-              <span className="badge-premium mb-3 d-inline-flex">
-                <i className="bi bi-grid-fill"></i> Catálogo de Razas
-              </span>
-              <h2 className="fw-bold mb-3" style={{ color: 'var(--text-dark)', fontSize: 'clamp(1.8rem,3vw,2.4rem)', lineHeight: 1.2 }}>
-                Nuestras Mascotas<br /><span className="text-gradient-premium">esperan un hogar 🐾</span>
-              </h2>
-              <p style={{ color: 'var(--text-body)', lineHeight: 1.9, marginBottom: '2rem' }}>
-                Explora nuestro catálogo de adopciones con razas de todas las personalidades.
-                Cada una está esperando a su familia ideal. Agenda una visita y enamórate.
-              </p>
-              <div className="d-flex gap-3 flex-wrap">
-                <Link to="/adopcion" className="btn btn-glow-primary rounded-pill px-5 py-3 fw-bold">
-                  Ver Adopciones <i className="bi bi-arrow-right ms-2"></i>
-                </Link>
-                <Link to="/nosotros" className="btn btn-glow-outline rounded-pill px-4 py-3">
-                  Conocer el equipo
-                </Link>
-              </div>
-            </div>
+          )}
+
+          <div className="text-center mt-5">
+            <Link to="/adopcion" className="btn btn-glow-outline rounded-pill px-5 py-3 fw-semibold">
+              Ver todas las mascotas <i className="bi bi-arrow-right ms-2" />
+            </Link>
           </div>
         </div>
       </section>
