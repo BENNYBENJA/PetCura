@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-const BACKEND_URL = 'http://localhost:3001/api'
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 function useCountUp(target, duration = 1800, shouldStart = false) {
   const [count, setCount] = useState(0)

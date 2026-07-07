@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const BACKEND_URL = 'http://localhost:3001/api'
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 const RAZAS_FALLBACK = [
   { id: 1,  name: 'Labrador Retriever', temperament: 'Activo, Amigable, Leal',           life_span: '10 – 12 años', weight: { metric: '25 – 36' }, breed_group: 'Sporting',     image: { url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?w=600&auto=format&fit=crop&q=80' } },
